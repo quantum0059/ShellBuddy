@@ -1,0 +1,26 @@
+{
+  "name": "pshell",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./bin/shellbuddy.js",
+    "dev": "nodemon --watch src --watch bin --ext js,json --exec \"node ./bin/shellbuddy.js\" --",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.13.6",
+    "chalk": "^4.1.2",
+    "commander": "^14.0.3",
+    "dotenv": "^17.3.1",
+    "nodemon": "^3.1.14",
+    "ora": "^5.4.1"
+  },
+  "bin": {
+    "shellbuddy": "./bin/shellbuddy.js"
+  }
+}
