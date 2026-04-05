@@ -20,6 +20,8 @@ function runCli() {
   program
     .command("command <query>")
     .description("Generate terminal command")
+    .option("--run", "Execute the command")
+    .option("--copy", "Copy command to clipboard")
     .action(commandGen);
 
   program
