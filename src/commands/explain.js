@@ -1,6 +1,5 @@
 const askAI = require("../ai/askAi");
 const ora = require("ora");
-const chalk = require("chalk");
 const formatResponse = require("../utils/formatter");
 
 async function explain(query){
@@ -13,6 +12,11 @@ async function explain(query){
         - What it does
         - Breakdown
         - Example
+
+        Output format (strict):
+        What it does: <short explanation>
+        Breakdown: <flags and parts in simple terms>
+        Example: <one practical example>
         
         Command: ${query}
         `;

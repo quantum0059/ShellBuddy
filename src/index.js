@@ -25,8 +25,8 @@ function runCli() {
     .action(commandGen);
 
   program
-    .command("fix <error>")
-    .description("Fix terminal errors")
+    .command("fix <issue>")
+    .description("Fix a failed command or terminal error")
     .action(fix);
 
   program.parse();

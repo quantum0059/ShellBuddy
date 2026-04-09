@@ -11,6 +11,7 @@ async function askAi(prompt){
         if (process.env.PSHELL_CACHE_LOG) {
             console.error("[pshell] served from cache");
         }
+        
         return cached;
     }
     try {
