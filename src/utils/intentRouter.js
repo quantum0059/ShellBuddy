@@ -37,6 +37,9 @@ const INTENT_PATTERNS = {
     
     // Permission/Sudo
     sudo_needed: /\b(permission.*denied|sudo|root|access.*denied)\b/i,
+
+    //install
+    install: /\b(npm|yarn|pip|apt|install)\b/i,
 };
 
 /**
@@ -192,18 +195,10 @@ function getLocalHandler(intent) {
 }
 
 /**
- * Resolve command using hybrid approach with caching
- * Tries cache first, then local handlers, falls back to AI
- * @param {string} query - User query
- * @param {string} aiResult - AI response (already fetched)
- * @param {Object} options - Configuration
- * @param {Function} options.isInvalidResponse - Validator for AI response
- * @param {Function} options.sanitizeCommand - Sanitizer for AI response
- * @param {boolean} options.useCache - Enable caching (default: true)
- * @returns {Object} { command, source, intent }
+ * Resolve without calling the network: query cache, high-confidence local handlers,
+ * then history-search fallback when intent matches.
  */
-function resolveWithHybrid(query, aiResult, { isInvalidResponse, sanitizeCommand, useCache = true } = {}) {
-    // Step 0: Check cache first if enabled
+function tryResolveWithoutAi(query, { useCache = true } = {}) {
     if (useCache) {
         const cached = getCacheResponse(query);
         if (cached !== undefined) {
@@ -213,39 +208,21 @@ function resolveWithHybrid(query, aiResult, { isInvalidResponse, sanitizeCommand
             return { command: cached, source: "cache", intent: detectIntent(query) };
         }
     }
-    
-    // Step 1: Detect user intent
+
     const intent = detectIntent(query);
-    
-    // Step 2: Try local handler if available and high confidence
+
     const handler = getLocalHandler(intent);
     if (handler && hasHighConfidence(query, intent)) {
         const localCommand = handler(query);
         if (localCommand) {
-            // Cache local responses too for consistency
             if (useCache) {
                 setCachedResponse(query, localCommand);
             }
             return { command: localCommand, source: "local", intent };
         }
     }
-    
-    // Step 3: Try AI response
-    if (aiResult) {
-        const sanitized = sanitizeCommand ? sanitizeCommand(aiResult) : aiResult.trim();
-        const isInvalid = isInvalidResponse ? isInvalidResponse(aiResult) : false;
-        
-        if (sanitized && !isInvalid) {
-            // Cache AI responses (already cached in askAi, but ensuring consistency)
-            if (useCache) {
-                setCachedResponse(query, sanitized);
-            }
-            return { command: sanitized, source: "ai", intent };
-        }
-    }
-    
-    // Step 4: Last resort fallback
-    if (intent === 'history_search') {
+
+    if (intent === "history_search") {
         const fallback = buildHistorySearchCommand(query);
         if (fallback) {
             if (useCache) {
@@ -254,8 +231,50 @@ function resolveWithHybrid(query, aiResult, { isInvalidResponse, sanitizeCommand
             return { command: fallback, source: "fallback", intent };
         }
     }
-    
+
     return { command: null, source: "none", intent };
+}
+
+/**
+ * After AI returns: use sanitized AI command, or history fallback if applicable.
+ */
+function finalizeWithAi(query, aiResult, { isInvalidResponse, sanitizeCommand, useCache = true } = {}) {
+    const intent = detectIntent(query);
+
+    if (aiResult) {
+        const sanitized = sanitizeCommand ? sanitizeCommand(aiResult) : aiResult.trim();
+        const isInvalid = isInvalidResponse ? isInvalidResponse(aiResult) : false;
+
+        if (sanitized && !isInvalid) {
+            if (useCache) {
+                setCachedResponse(query, sanitized);
+            }
+            return { command: sanitized, source: "ai", intent };
+        }
+    }
+
+    if (intent === "history_search") {
+        const fallback = buildHistorySearchCommand(query);
+        if (fallback) {
+            if (useCache) {
+                setCachedResponse(query, fallback);
+            }
+            return { command: fallback, source: "fallback", intent };
+        }
+    }
+
+    return { command: null, source: "none", intent };
+}
+
+/**
+ * Single-call resolver: pre-AI path first, then AI + finalize (for tests or other callers).
+ */
+function resolveWithHybrid(query, aiResult, options = {}) {
+    const pre = tryResolveWithoutAi(query, { useCache: options.useCache });
+    if (pre.command) {
+        return pre;
+    }
+    return finalizeWithAi(query, aiResult, options);
 }
 
 /**
@@ -295,6 +314,8 @@ module.exports = {
     buildGitCommand,
     buildNetworkCommand,
     getLocalHandler,
+    tryResolveWithoutAi,
+    finalizeWithAi,
     resolveWithHybrid,
     isInvalidAiResponse,
     sanitizeAiCommand,

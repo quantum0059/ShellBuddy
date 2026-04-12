@@ -1,16 +1,17 @@
 const askAI = require("../ai/askAi");
 const ora = require("ora");
+const chalk = require("chalk");
 const formatResponse = require("../utils/formatter");
-const { detectIntent, getLocalHandler, hasHighConfidence } = require("../utils/intentRouter");
+const { detectIntent, hasHighConfidence, isInvalidAiResponse } = require("../utils/intentRouter");
 const { getCacheResponse, setCachedResponse } = require("../utils/cache");
 
 async function explain(query){
     const spinner = ora("Explaining command...").start();
     
     try {
-        // Check cache first
+        // Check cache first (skip stale AI failure strings)
         const cached = getCacheResponse(query);
-        if (cached !== undefined) {
+        if (cached !== undefined && !isInvalidAiResponse(cached)) {
             spinner.stop();
             formatResponse("Command Explanation", cached);
             if (process.env.PSHELL_CACHE_LOG) {
@@ -48,9 +49,24 @@ async function explain(query){
         Command: ${query}
         `;
         const result = await askAI(prompt);
-    
+
         spinner.stop();
-    
+
+        if (isInvalidAiResponse(result)) {
+            console.log();
+            console.log(chalk.yellow.bold("• AI unavailable"));
+            console.log(
+                chalk.white(
+                    "Cloud AI did not return an explanation (network, rate limit, or downtime). Check GEMINI_API_KEY and try again shortly."
+                )
+            );
+            const hint = manHintForQuery(query);
+            console.log(chalk.cyan.bold("• Offline help"));
+            console.log(chalk.white(hint));
+            console.log();
+            return;
+        }
+
         formatResponse("Command Explanation", result);
     } catch (error) {
         spinner.stop();
@@ -89,6 +105,20 @@ function getLocalExplanation(query, intent) {
     }
     
     return null;
+}
+
+function manHintForQuery(query) {
+    const first = String(query || "")
+        .trim()
+        .split(/\s+/)[0];
+    if (!first || first.includes("|") || first.includes("/")) {
+        return "Try: man <command-name>   or   tldr <command-name>   (install tldr if needed)";
+    }
+    const safe = first.replace(/[^a-zA-Z0-9._-]/g, "");
+    if (!safe) {
+        return "Try: man <command-name>   or   tldr <command-name>";
+    }
+    return `Try: man ${safe}   or   tldr ${safe}`;
 }
 
 module.exports = explain;

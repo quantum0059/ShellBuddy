@@ -4,7 +4,12 @@ const ora = require("ora");
 const { exec } = require("child_process");
 const isDangerous = require("../utils/safety");
 const confirmExecution = require("../utils/conformation");
-const { resolveWithHybrid, isInvalidAiResponse, sanitizeAiCommand } = require("../utils/intentRouter");
+const {
+    tryResolveWithoutAi,
+    finalizeWithAi,
+    isInvalidAiResponse,
+    sanitizeAiCommand
+} = require("../utils/intentRouter");
 
 
 async function commandGen(query, options){
@@ -24,12 +29,17 @@ async function commandGen(query, options){
     
     Query: ${query}
     `;
-    
-        const aiResult = (await askAI(prompt)).trim();
-        const { command: result, source, intent } = resolveWithHybrid(query, aiResult, {
+
+        const hybridOpts = {
             isInvalidResponse: isInvalidAiResponse,
             sanitizeCommand: sanitizeAiCommand
-        });
+        };
+
+        let { command: result, source } = tryResolveWithoutAi(query, hybridOpts);
+        if (!result) {
+            const aiResult = (await askAI(prompt)).trim();
+            ({ command: result, source } = finalizeWithAi(query, aiResult, hybridOpts));
+        }
         if (!result) {
             spinner.stop();
             console.log("❌ Unable to generate a reliable command right now. Please try again.");
@@ -44,6 +54,8 @@ async function commandGen(query, options){
             console.log("ℹ️ Used local intent handler for faster response.");
         } else if (source === "fallback") {
             console.log("ℹ️ Used local fallback because AI was unavailable.");
+        } else if (source === "ai") {
+            console.log("ℹ️ Used cloud AI for this command.");
         }
 
         if(options.copy){
