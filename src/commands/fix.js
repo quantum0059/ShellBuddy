@@ -3,22 +3,48 @@ const formatResponse = require("../utils/formatter");
 const ora = require("ora");
 const {getLastCommand} = require("../services/historyService");
 const isDangerous = require("../utils/safety");
+const { detectIntent, hasHighConfidence, buildHistorySearchCommand, extractSearchTerms } = require("../utils/intentRouter");
+const { getCacheResponse, setCachedResponse } = require("../utils/cache");
 
 async function fix(issue){
     const lastCommand = getLastCommand();
     const failedCommand = resolveFailedCommand(issue, lastCommand);
+    
+    // Check cache first
+    const cached = getCacheResponse(issue);
+    if (cached !== undefined) {
+        formatResponse("Suggested Fix", cached);
+        if (process.env.PSHELL_CACHE_LOG) {
+            console.log("⚡ Served from cache for instant response.");
+        }
+        return;
+    }
+    
+    // Try local fixes first for common issues
     const directFix = getDirectFix(failedCommand);
-    const spinner = ora("Fixing error...").start();
-    try {
-        if (directFix) {
-            spinner.stop();
-            formatResponse(
-                "Suggested Fix",
-                `Cause: The command has a syntax/order issue.\nSolution: Use history output on the left side of the pipe and grep on the right side.\nCorrect command: ${directFix}`
-            );
+    if (directFix) {
+        const fixResponse = `Cause: The command has a syntax/order issue.\nSolution: Use history output on the left side of the pipe and grep on the right side.\nCorrect command: ${directFix}`;
+        formatResponse("Suggested Fix", fixResponse);
+        setCachedResponse(issue, fixResponse);
+        console.log("ℹ️ Used local fix for common issue.");
+        return;
+    }
+    
+    // Check for history-related errors
+    const intent = detectIntent(issue);
+    if (intent === 'history_search' && hasHighConfidence(issue, intent)) {
+        const historyFix = buildHistorySearchCommand(issue);
+        if (historyFix) {
+            const fixResponse = `Cause: You're trying to search command history.\nSolution: Use the history command with grep.\nCorrect command: ${historyFix}`;
+            formatResponse("Suggested Fix", fixResponse);
+            setCachedResponse(issue, fixResponse);
+            console.log("ℹ️ Used local fix for history search.");
             return;
         }
-
+    }
+    
+    const spinner = ora("Fixing error...").start();
+    try {
         const prompt = `
             Fix this terminal error:
             Failed command: ${failedCommand}

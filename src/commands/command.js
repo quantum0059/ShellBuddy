@@ -2,8 +2,9 @@ const askAI = require("../ai/askAi");
 const formatResponse = require("../utils/formatter");
 const ora = require("ora");
 const { exec } = require("child_process");
-const  isDangerous  = require("../utils/safety");
+const isDangerous = require("../utils/safety");
 const confirmExecution = require("../utils/conformation");
+const { resolveWithHybrid, isInvalidAiResponse, sanitizeAiCommand } = require("../utils/intentRouter");
 
 
 async function commandGen(query, options){
@@ -25,7 +26,10 @@ async function commandGen(query, options){
     `;
     
         const aiResult = (await askAI(prompt)).trim();
-        const { command: result, source } = resolveCommand(query, aiResult);
+        const { command: result, source, intent } = resolveWithHybrid(query, aiResult, {
+            isInvalidResponse: isInvalidAiResponse,
+            sanitizeCommand: sanitizeAiCommand
+        });
         if (!result) {
             spinner.stop();
             console.log("❌ Unable to generate a reliable command right now. Please try again.");
@@ -34,7 +38,11 @@ async function commandGen(query, options){
 
         spinner.stop();
         formatResponse("Generated Command", result.trim());
-        if (source === "fallback") {
+        if (source === "cache") {
+            console.log("⚡ Served from cache for instant response.");
+        } else if (source === "local") {
+            console.log("ℹ️ Used local intent handler for faster response.");
+        } else if (source === "fallback") {
             console.log("ℹ️ Used local fallback because AI was unavailable.");
         }
 
@@ -71,78 +79,6 @@ async function commandGen(query, options){
     }
 }
 
-function resolveCommand(query, aiResult) {
-    const directHistoryCommand = buildHistorySearchCommand(query);
-    if (directHistoryCommand) {
-        return { command: directHistoryCommand, source: "fallback" };
-    }
 
-    const fallback = fallbackCommandFromQuery(query);
-    if (isInvalidAiResponse(aiResult)) {
-        return fallback ? { command: fallback, source: "fallback" } : { command: null, source: "none" };
-    }
-    const sanitizedAi = sanitizeAiCommand(aiResult);
-    if (!sanitizedAi) {
-        return fallback ? { command: fallback, source: "fallback" } : { command: null, source: "none" };
-    }
-    return { command: sanitizedAi, source: "ai" };
-}
-
-function isInvalidAiResponse(text) {
-    const value = String(text || "").trim().toLowerCase();
-    return !value || value.includes("failed to get response from ai");
-}
-
-function fallbackCommandFromQuery(query) {
-    const q = String(query || "").toLowerCase();
-    const wantsHistory = q.includes("history") || q.includes("previous") || q.includes("earlier") || q.includes("used");
-
-    if (wantsHistory) {
-        const terms = extractSearchTerms(q);
-        if (!terms.length) return "history";
-        return `history | grep -i "${terms.join("|")}"`;
-    }
-
-    return null;
-}
-
-function buildHistorySearchCommand(query) {
-    const q = String(query || "").toLowerCase();
-    const wantsHistory = q.includes("history") || q.includes("previous") || q.includes("earlier") || q.includes("used");
-    if (!wantsHistory) return null;
-
-    const terms = extractSearchTerms(q);
-    if (!terms.length) return "history";
-    return `history | grep -i "${terms.join("|")}"`;
-}
-
-function extractSearchTerms(query) {
-    const stopWords = new Set([
-        "find", "show", "get", "give", "me", "my", "the", "a", "an", "of", "to", "for",
-        "command", "commands", "related", "about", "from", "in", "on", "with", "that",
-        "i", "used", "use", "previous", "earlier", "history", "terminal", "please", "run",
-        "any", "wish"
-    ]);
-
-    return query
-        .replace(/[^a-z0-9\s-]/g, " ")
-        .split(/\s+/)
-        .map((w) => w.trim())
-        .filter((w) => w.length > 1 && !stopWords.has(w))
-        .slice(0, 4);
-}
-
-function sanitizeAiCommand(value) {
-    const text = String(value || "").trim();
-    if (!text) return null;
-
-    const firstLine = text.split("\n").map((line) => line.trim()).find(Boolean);
-    if (!firstLine) return null;
-
-    const lower = firstLine.toLowerCase();
-    if (lower.includes("failed to get response from ai")) return null;
-    if (lower.startsWith("error:")) return null;
-    return firstLine;
-}
 
 module.exports = commandGen;
