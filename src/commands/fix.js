@@ -3,7 +3,7 @@ const formatResponse = require("../utils/formatter");
 const ora = require("ora");
 const {getLastCommand} = require("../services/historyService");
 const isDangerous = require("../utils/safety");
-const { detectIntent, hasHighConfidence, buildHistorySearchCommand, extractSearchTerms } = require("../utils/intentRouter");
+const { detectIntent, hasHighConfidence, buildHistorySearchCommand, extractSearchTerms, isInvalidAiResponse } = require("../utils/intentRouter");
 const { getCacheResponse, setCachedResponse } = require("../utils/cache");
 
 async function fix(issue){
@@ -12,7 +12,7 @@ async function fix(issue){
     
     // Check cache first
     const cached = getCacheResponse(issue);
-    if (cached !== undefined) {
+    if (cached !== undefined && !isInvalidAiResponse(cached)) {
         formatResponse("Suggested Fix", cached);
         if (process.env.PSHELL_CACHE_LOG) {
             console.log("⚡ Served from cache for instant response.");
@@ -103,14 +103,14 @@ function getDirectFix(commandText) {
         const replaced = text.replace(/^hrep\b/i, "grep").replace(/-\|/g, "|").trim();
         if (/^grep\s+\|\s+/i.test(replaced) || /^grep\s*\|/i.test(replaced)) {
             const keyword = extractKeyword(replaced) || "github";
-            return `history | grep -i "${keyword}"`;
+            return `bash -c 'grep -Ei "${keyword}" ~/.bash_history'`;
         }
         return replaced;
     }
 
     if (/^grep\b/i.test(text) && /-\|/.test(text)) {
         const keyword = extractKeyword(text) || "github";
-        return `history | grep -i "${keyword}"`;
+        return `bash -c 'grep -Ei "${keyword}" ~/.bash_history'`;
     }
 
     return null;
