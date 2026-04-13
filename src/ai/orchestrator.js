@@ -9,8 +9,8 @@ class AIOrchestrator {
         this.initialized = false;
     }
 
-    async initialize() {
-        if (this.initialized) return;
+    async initialize(forceRefresh = false) {
+        if (this.initialized && !forceRefresh) return;
 
         this.providers = [];
 
@@ -31,6 +31,11 @@ class AIOrchestrator {
 
     async generate(prompt) {
         await this.initialize();
+
+        // If nothing was available during initial detection, re-check once.
+        if (this.providers.length === 0) {
+            await this.initialize(true);
+        }
 
         // Check cache first
         const cached = getCacheResponse(prompt);

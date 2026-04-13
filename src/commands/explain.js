@@ -2,7 +2,7 @@ const askAI = require("../ai/askAi");
 const ora = require("ora");
 const chalk = require("chalk");
 const formatResponse = require("../utils/formatter");
-const { detectIntent, hasHighConfidence, isInvalidAiResponse } = require("../utils/intentRouter");
+const { detectIntent, isInvalidAiResponse } = require("../utils/intentRouter");
 const { getCacheResponse, setCachedResponse } = require("../utils/cache");
 
 async function explain(query){
@@ -24,7 +24,7 @@ async function explain(query){
         const intent = detectIntent(query);
         const localExplanation = getLocalExplanation(query, intent);
         
-        if (localExplanation && hasHighConfidence(query, intent) && isSimpleCommand(query)) {
+        if (localExplanation && isSimpleCommand(query)) {
             spinner.stop();
             formatResponse("Command Explanation", localExplanation);
             setCachedResponse(query, localExplanation);

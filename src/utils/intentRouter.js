@@ -37,9 +37,6 @@ const INTENT_PATTERNS = {
     
     // Permission/Sudo
     sudo_needed: /\b(permission.*denied|sudo|root|access.*denied)\b/i,
-
-    //install
-    install: /\b(npm|yarn|pip|apt|install)\b/i,
 };
 
 /**
