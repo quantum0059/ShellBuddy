@@ -115,8 +115,8 @@ function extractSearchTerms(query) {
  */
 function buildHistorySearchCommand(query) {
     const terms = extractSearchTerms(query);
-    if (!terms.length) return "history";
-    return `history | grep -i "${terms.join("|")}"`;
+    if (!terms.length) return "bash -c 'tail -100 ~/.bash_history'";
+    return `bash -c 'grep -Ei "${terms.join("|")}" ~/.bash_history'`;
 }
 
 /**
