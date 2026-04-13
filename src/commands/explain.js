@@ -24,7 +24,7 @@ async function explain(query){
         const intent = detectIntent(query);
         const localExplanation = getLocalExplanation(query, intent);
         
-        if (localExplanation && hasHighConfidence(query, intent)) {
+        if (localExplanation && hasHighConfidence(query, intent) && isSimpleCommand(query)) {
             spinner.stop();
             formatResponse("Command Explanation", localExplanation);
             setCachedResponse(query, localExplanation);
@@ -105,6 +105,13 @@ function getLocalExplanation(query, intent) {
     }
     
     return null;
+}
+
+function isSimpleCommand(query) {
+    const q = query.toLowerCase().trim();
+    const simpleCommands = ['ls', 'ps aux', 'grep', 'history', 'chmod'];
+    return simpleCommands.includes(q) || 
+           (simpleCommands.some(cmd => q === cmd) && !q.includes('|') && !q.includes('bash'));
 }
 
 function manHintForQuery(query) {
