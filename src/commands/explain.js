@@ -48,7 +48,8 @@ async function explain(query){
         
         Command: ${query}
         `;
-        const result = await askAI(prompt);
+        const aiResponse = await askAI(prompt);
+        const result = aiResponse.text;
 
         spinner.stop();
 

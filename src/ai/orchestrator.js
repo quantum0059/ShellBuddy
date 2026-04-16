@@ -14,16 +14,30 @@ class AIOrchestrator {
 
         this.providers = [];
 
-        if (this.backend === 'auto' || this.backend === 'gemini') {
-            const gemini = new GeminiProvider();
-            await gemini.checkAvailability();
-            if (gemini.available) this.providers.push(gemini);
-        }
-
+        // Initialize Ollama first (local-first priority in auto mode)
+        let ollamaError = null;
         if (this.backend === 'auto' || this.backend === 'ollama' || this.backend === 'local') {
             const ollama = new OllamaProvider();
             await ollama.checkAvailability();
-            if (ollama.available) this.providers.push(ollama);
+            if (ollama.available) {
+                this.providers.push(ollama);
+            } else if (ollama.errorMessage) {
+                ollamaError = ollama.errorMessage;
+            }
+        }
+
+        // Initialize Gemini (cloud fallback)
+        if (this.backend === 'auto' || this.backend === 'gemini') {
+            const gemini = new GeminiProvider();
+            await gemini.checkAvailability();
+            if (gemini.available) {
+                this.providers.push(gemini);
+                // Warn if we wanted Ollama but fell back to Gemini
+                if (ollamaError && this.backend === 'auto') {
+                    console.error(`\n⚠️  Local AI not available: ${ollamaError}`);
+                    console.error('ℹ️  Falling back to cloud AI (Gemini).\n');
+                }
+            }
         }
 
         this.initialized = true;
@@ -43,7 +57,18 @@ class AIOrchestrator {
         }
 
         if (this.providers.length === 0) {
-            throw new Error('No AI providers configured. Set GEMINI_API_KEY in .env or install Ollama.');
+            const messages = [];
+            messages.push('\n❌ No AI providers available.\n');
+            messages.push('Quick setup options:\n');
+            messages.push('1. Use Cloud AI (Gemini):');
+            messages.push('   • Get free API key: https://aistudio.google.com');
+            messages.push('   • Add to .env: GEMINI_API_KEY=your_key\n');
+            messages.push('2. Use Local AI (Ollama):');
+            messages.push('   • Install Ollama: curl -fsSL https://ollama.ai/install.sh | sh');
+            messages.push('   • Start server: ollama serve');
+            messages.push('   • Pull model: ollama pull mistral:latest\n');
+            messages.push('3. See full guide: shellbuddy setup\n');
+            throw new Error(messages.join('\n'));
         }
 
         // Check cache first

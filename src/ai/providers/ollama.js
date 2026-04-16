@@ -15,9 +15,22 @@ class OllamaProvider extends AIProvider {
         try {
             const response = await this.makeRequest('/api/tags', 'GET');
             const hasModel = response.models?.some(m => m.name === this.model);
+            
+            if (!hasModel && response.models?.length > 0) {
+                const availableModels = response.models.map(m => m.name).join(', ');
+                this.errorMessage = `Model '${this.model}' not found. Available models: ${availableModels}. Run: ollama pull ${this.model}`;
+            } else if (!response.models || response.models.length === 0) {
+                this.errorMessage = `No Ollama models installed. Run: ollama pull ${this.model}`;
+            }
+            
             this.available = hasModel;
             return this.available;
-        } catch {
+        } catch (error) {
+            if (error.message?.includes('ECONNREFUSED') || error.message?.includes('connect')) {
+                this.errorMessage = 'Ollama server not running. Start it with: ollama serve';
+            } else {
+                this.errorMessage = `Ollama error: ${error.message}`;
+            }
             this.available = false;
             return false;
         }

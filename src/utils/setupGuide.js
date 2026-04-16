@@ -19,21 +19,28 @@ function showSetupGuide() {
     console.log(`\nSystem: ${ramGB}GB RAM`);
     console.log(`\nChoose AI backend:\n`);
 
-    console.log('1. Cloud AI (Fastest, requires API key)');
+    console.log('1. Hybrid Mode (Recommended) - Best of both worlds');
+    console.log('   • Uses local AI first (private, offline)');
+    console.log('   • Falls back to cloud AI when needed');
+    console.log('   • Setup: Configure both options below\n');
+
+    console.log('2. Cloud AI (Gemini) - Fastest, requires API key');
     console.log('   • Get free key: https://aistudio.google.com');
-    console.log('   • Set: export GEMINI_API_KEY=your_key\n');
+    console.log('   • Add to .env: GEMINI_API_KEY=your_key');
+    console.log('   • Set: SHELLBUDDY_AI_BACKEND=gemini\n');
 
-    console.log('2. Local AI (Private, offline)');
+    console.log('3. Local AI (Ollama) - Private, works offline');
     console.log('   • Install: curl -fsSL https://ollama.ai/install.sh | sh');
-    console.log(`   • Recommended model: ${suggestedModel}`);
-    console.log(`   • Install model: ollama pull ${suggestedModel}`);
-    console.log('   • Set: export SHELLBUDDY_AI_BACKEND=local\n');
-
-    console.log('3. Local rules only (No AI)');
-    console.log('   • Works with built-in command handlers\n');
+    console.log('   • Start server: ollama serve');
+    console.log(`   • Pull model: ollama pull ${suggestedModel}`);
+    console.log('   • Set: SHELLBUDDY_AI_BACKEND=ollama\n');
 
     console.log('═'.repeat(50));
-    console.log('💡 Tip: Set these in ~/.bashrc for persistence');
+    console.log('💡 Quick Start (Hybrid Mode):');
+    console.log('   1. Add GEMINI_API_KEY to .env (cloud backup)');
+    console.log('   2. Install Ollama + pull a model (local primary)');
+    console.log('   3. Keep SHELLBUDDY_AI_BACKEND=auto (default)\n');
+    console.log('💡 Tip: Set environment variables in ~/.bashrc for persistence');
     console.log();
 }
 

@@ -2,7 +2,7 @@ const askAI = require("../ai/askAi");
 const formatResponse = require("../utils/formatter");
 const ora = require("ora");
 const {getLastCommand} = require("../services/historyService");
-const isDangerous = require("../utils/safety");
+const { isDangerous } = require("../utils/safety");
 const { detectIntent, hasHighConfidence, buildHistorySearchCommand, extractSearchTerms, isInvalidAiResponse } = require("../utils/intentRouter");
 const { getCacheResponse, setCachedResponse } = require("../utils/cache");
 
@@ -67,8 +67,8 @@ async function fix(issue){
             - If this is a typo/syntax issue, return the nearest valid correction.
             `;
     
-        let result = await askAI(prompt);
-        result = sanitizeDangerousSuggestion(result, failedCommand);
+        const aiResponse = await askAI(prompt);
+        let result = sanitizeDangerousSuggestion(aiResponse.text, failedCommand);
         
         spinner.stop();
         formatResponse("Suggested Fix", result);
