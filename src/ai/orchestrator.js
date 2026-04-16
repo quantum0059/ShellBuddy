@@ -32,9 +32,18 @@ class AIOrchestrator {
     async generate(prompt) {
         await this.initialize();
 
+        console.error('[AI Orchestrator] Backend:', this.backend);
+        console.error('[AI Orchestrator] Providers available:', this.providers.map(p => p.name));
+
         // If nothing was available during initial detection, re-check once.
         if (this.providers.length === 0) {
+            console.error('[AI Orchestrator] No providers available, re-initializing...');
             await this.initialize(true);
+            console.error('[AI Orchestrator] After re-init, providers:', this.providers.map(p => p.name));
+        }
+
+        if (this.providers.length === 0) {
+            throw new Error('No AI providers configured. Set GEMINI_API_KEY in .env or install Ollama.');
         }
 
         // Check cache first
@@ -50,6 +59,7 @@ class AIOrchestrator {
         // Try each provider in order
         for (const provider of this.providers) {
             try {
+                console.error(`[AI Orchestrator] Trying provider: ${provider.name}`);
                 const result = await provider.generate(prompt);
                 
                 // Cache successful response
@@ -57,7 +67,9 @@ class AIOrchestrator {
                 
                 return result;
             } catch (error) {
-                console.error(`[AI] ${provider.name} failed:`, error.message);
+                console.error(`[AI Orchestrator] ${provider.name} failed:`, error.message);
+                console.error(`[AI Orchestrator] ${provider.name} error status:`, error.status || error.statusCode || 'N/A');
+                console.error(`[AI Orchestrator] ${provider.name} full error:`, error);
                 continue;
             }
         }

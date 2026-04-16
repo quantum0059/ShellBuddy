@@ -5,6 +5,8 @@ const fix = require("./commands/fix");
 const { showSetupGuide } = require("./utils/setupGuide");
 const orchestrator = require("./ai/orchestrator");
 
+require("dotenv").config();
+
 async function runCli() {
     const program = new Command();
 

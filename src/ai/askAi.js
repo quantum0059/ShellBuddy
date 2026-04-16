@@ -8,6 +8,7 @@ async function askAi(prompt) {
         return result.text;
     } catch (error) {
         console.error('[AI] Error:', error.message);
+        console.error('[AI] Full error:', JSON.stringify(error, null, 2));
         return AI_FAILURE_MESSAGE;
     }
 }
